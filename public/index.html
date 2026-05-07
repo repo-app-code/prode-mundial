@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Prode Mundial 2026</title>
+</head>
+<body>
+  <script>
+    const token = localStorage.getItem('token');
+    window.location.href = token ? '/dashboard.html' : '/login.html';
+  </script>
+</body>
+</html>

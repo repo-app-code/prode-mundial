@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mis Grupos – Prode Mundial 2026</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <nav>
+    <a class="nav-brand" href="/dashboard.html">⚽ Prode Mundial 2026</a>
+    <div id="nav-links" class="nav-links"></div>
+    <div class="nav-user">
+      Hola, <span id="nav-username"></span>
+      <button id="btn-logout" class="btn btn-ghost btn-sm">Salir</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="flex-between mb-2">
+      <div class="page-title" style="margin-bottom:0">👥 Mis Grupos</div>
+      <div style="display:flex; gap:.5rem;">
+        <button class="btn btn-ghost" id="btn-join">🔗 Unirse con código</button>
+        <button class="btn btn-primary" id="btn-create">+ Crear grupo</button>
+      </div>
+    </div>
+
+    <div id="groups-container">
+      <div class="empty-state"><span class="spinner"></span> Cargando...</div>
+    </div>
+  </div>
+
+  <!-- Modal: Crear grupo -->
+  <div class="modal-overlay hidden" id="modal-create">
+    <div class="modal">
+      <div class="modal-title">➕ Crear nuevo grupo</div>
+      <div id="create-alert" class="alert hidden"></div>
+      <div class="form-group">
+        <label class="form-label">Nombre del grupo</label>
+        <input class="form-control" id="create-name" placeholder="Ej: Oficina Marketing" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción (opcional)</label>
+        <input class="form-control" id="create-desc" placeholder="Pequeña descripción...">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-create-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="btn-create-submit">Crear grupo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Unirse a grupo -->
+  <div class="modal-overlay hidden" id="modal-join">
+    <div class="modal">
+      <div class="modal-title">🔗 Unirse a un grupo</div>
+      <div id="join-alert" class="alert hidden"></div>
+      <div id="join-preview" class="hidden" style="background:var(--primary-light); border-radius:8px; padding:1rem; margin-bottom:1rem;">
+        <div style="font-weight:700; font-size:1rem;" id="preview-name"></div>
+        <div style="color:var(--text-muted); font-size:.85rem;" id="preview-desc"></div>
+        <div style="font-size:.8rem; margin-top:.35rem;" id="preview-members"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Código de invitación</label>
+        <input class="form-control" id="join-code" placeholder="Ej: A3F9B2C1" maxlength="8" style="text-transform:uppercase; font-family:monospace; font-size:1.1rem; letter-spacing:.1em;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-join-cancel">Cancelar</button>
+        <button class="btn btn-ghost" id="btn-join-preview">Buscar grupo</button>
+        <button class="btn btn-primary hidden" id="btn-join-submit">Solicitar ingreso</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/pages/groups.js"></script>
+</body>
+</html>

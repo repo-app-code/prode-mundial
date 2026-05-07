@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Partidos – Prode Mundial 2026</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <nav>
+    <a class="nav-brand" href="/dashboard.html">⚽ Prode Mundial 2026</a>
+    <div id="nav-links" class="nav-links"></div>
+    <div class="nav-user">
+      Hola, <span id="nav-username"></span>
+      <button id="btn-logout" class="btn btn-ghost btn-sm">Salir</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-title">⚽ Partidos y Pronósticos</div>
+
+    <div class="card" style="margin-bottom:1rem; padding:.75rem 1.25rem;">
+      <div style="font-size:.85rem; color:var(--text-muted);">
+        🎯 Sistema de puntos: <strong>Resultado exacto = 3 pts</strong> &nbsp;|&nbsp; <strong>Ganador/empate correcto = 1 pt</strong> &nbsp;|&nbsp; Equivocado = 0 pts
+      </div>
+    </div>
+
+    <div id="filter-bar" class="filter-bar"></div>
+
+    <div id="matches-container">
+      <div class="empty-state"><span class="spinner"></span> Cargando partidos...</div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/pages/matches.js"></script>
+</body>
+</html>

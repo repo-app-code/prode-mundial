@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detalle del Grupo – Prode Mundial 2026</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <nav>
+    <a class="nav-brand" href="/dashboard.html">⚽ Prode Mundial 2026</a>
+    <div id="nav-links" class="nav-links"></div>
+    <div class="nav-user">
+      Hola, <span id="nav-username"></span>
+      <button id="btn-logout" class="btn btn-ghost btn-sm">Salir</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div style="margin-bottom:1rem;">
+      <a href="/groups.html" class="btn btn-ghost btn-sm">← Volver a grupos</a>
+    </div>
+
+    <div id="group-header" style="margin-bottom:1.5rem;">
+      <div class="empty-state"><span class="spinner"></span></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="ranking">🏆 Ranking</button>
+      <button class="tab-btn" data-tab="members">👥 Miembros</button>
+      <button class="tab-btn hidden" id="tab-admin-btn" data-tab="admin">⚙️ Administrar</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-ranking">
+      <div class="empty-state"><span class="spinner"></span></div>
+    </div>
+
+    <div class="tab-panel" id="tab-members">
+      <div class="empty-state"><span class="spinner"></span></div>
+    </div>
+
+    <div class="tab-panel hidden" id="tab-admin">
+      <div class="card">
+        <div class="card-header">⏳ Solicitudes pendientes</div>
+        <div class="card-body" id="pending-list">
+          <div class="empty-state"><span class="spinner"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/pages/group-detail.js"></script>
+</body>
+</html>
