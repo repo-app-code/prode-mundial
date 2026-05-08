@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticate, requireAdmin } = require('../middleware/auth');
-const { setupFromFootballData, remapToApiFootball, syncResults } = require('../jobs/syncResults');
+const { setupFromFootballData, remapToApiFootball, syncResults, importKnockoutStage } = require('../jobs/syncResults');
 const db = require('../config/database');
 
 const router = express.Router();
@@ -41,6 +41,23 @@ router.post('/sync/results', authenticate, requireAdmin, async (req, res) => {
   try {
     const result = await syncResults();
     lastSync = { type: 'sync-results', at: new Date().toISOString(), result };
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Importar partidos de una fase de playoff (correr cuando los cruces estén definidos)
+const VALID_KNOCKOUT_STAGES = ['LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_PLACE', 'FINAL'];
+
+router.post('/sync/import-stage', authenticate, requireAdmin, async (req, res) => {
+  const { stage } = req.body;
+  if (!stage || !VALID_KNOCKOUT_STAGES.includes(stage)) {
+    return res.status(400).json({ error: `Fase inválida. Opciones: ${VALID_KNOCKOUT_STAGES.join(', ')}` });
+  }
+  try {
+    const result = await importKnockoutStage(stage);
+    lastSync = { type: `import-stage:${stage}`, at: new Date().toISOString(), result };
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

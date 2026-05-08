@@ -556,6 +556,18 @@ nav {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── STAGE SECTION LABEL ── */
+.stage-section-label {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  padding: 1.25rem 0 .4rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .75rem;
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 640px) {
   .container { padding: 1rem; }

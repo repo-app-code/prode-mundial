@@ -1,6 +1,17 @@
 const user = requireAuth();
 if (!user?.is_admin) window.location.href = '/dashboard.html';
 
+const STAGE_LABELS = {
+  group: 'Fase de Grupos',
+  r32:   'Ronda de 32',
+  r16:   'Octavos de Final',
+  qf:    'Cuartos de Final',
+  sf:    'Semifinales',
+  third: 'Tercer Puesto',
+  final: 'Final',
+};
+const STAGE_ORDER = ['group', 'r32', 'r16', 'qf', 'sf', 'third', 'final'];
+
 let allMatches = [];
 let activeFilter = 'all';
 let editingMatchId = null;
@@ -13,13 +24,21 @@ async function loadMatches() {
 
 function renderFilters() {
   const groups = [...new Set(allMatches.filter(m => m.group_letter).map(m => m.group_letter))].sort();
-  const bar = document.getElementById('filter-bar');
+  const knockoutStages = [...new Set(allMatches.filter(m => m.stage !== 'group').map(m => m.stage))]
+    .sort((a, b) => STAGE_ORDER.indexOf(a) - STAGE_ORDER.indexOf(b));
+
   const filters = [
-    { key: 'all', label: 'Todos' },
-    { key: 'pending', label: 'Sin resultado' },
+    { key: 'all',      label: 'Todos' },
+    { key: 'pending',  label: 'Sin resultado' },
     { key: 'finished', label: 'Finalizados' },
-    ...groups.map(g => ({ key: `g_${g}`, label: `Grupo ${g}` })),
   ];
+  if (knockoutStages.length) {
+    filters.push({ key: 'grupos', label: 'Fase de Grupos' });
+    knockoutStages.forEach(s => filters.push({ key: `stage_${s}`, label: STAGE_LABELS[s] || s }));
+  }
+  filters.push(...groups.map(g => ({ key: `g_${g}`, label: `Grupo ${g}` })));
+
+  const bar = document.getElementById('filter-bar');
   bar.innerHTML = filters.map(f =>
     `<button class="filter-btn ${activeFilter === f.key ? 'active' : ''}" data-key="${f.key}">${f.label}</button>`
   ).join('');
@@ -33,11 +52,41 @@ function renderFilters() {
   });
 }
 
+function renderMatchCard(m) {
+  const d = new Date(m.scheduled_at.replace(' ', 'T') + 'Z');
+  const dateStr = d.toLocaleDateString('es-AR', { weekday: 'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  const stageStr = m.group_letter ? `Grupo ${m.group_letter}` : (STAGE_LABELS[m.stage] || m.stage);
+  return `
+    <div class="match-card" style="margin-bottom:.75rem;">
+      <div class="match-header">
+        <span>${stageStr} · ${m.venue || ''}</span>
+        <span>${dateStr}</span>
+      </div>
+      <div class="match-body">
+        <div class="match-team">${m.team1_flag} ${m.team1_name}</div>
+        <div class="match-center">
+          ${m.is_finished
+            ? `<div class="match-score">${m.team1_score} – ${m.team2_score}</div>
+               <span class="badge badge-green" style="font-size:.7rem;">Finalizado</span>`
+            : `<div class="match-vs">vs</div>`}
+        </div>
+        <div class="match-team right">${m.team2_flag} ${m.team2_name}</div>
+      </div>
+      <div style="padding:.5rem 1rem; border-top:1px solid var(--border); text-align:right;">
+        <button class="btn btn-accent btn-sm btn-load-result" data-match-id="${m.id}" data-name="${m.team1_name} vs ${m.team2_name}">
+          ${m.is_finished ? '✏️ Editar resultado' : '⚽ Cargar resultado'}
+        </button>
+      </div>
+    </div>`;
+}
+
 function renderMatches() {
   let filtered = allMatches;
-  if (activeFilter === 'pending')  filtered = allMatches.filter(m => !m.is_finished);
-  if (activeFilter === 'finished') filtered = allMatches.filter(m => m.is_finished);
-  if (activeFilter.startsWith('g_')) filtered = allMatches.filter(m => m.group_letter === activeFilter.slice(2));
+  if (activeFilter === 'pending')           filtered = allMatches.filter(m => !m.is_finished);
+  else if (activeFilter === 'finished')     filtered = allMatches.filter(m => m.is_finished);
+  else if (activeFilter === 'grupos')       filtered = allMatches.filter(m => m.stage === 'group');
+  else if (activeFilter.startsWith('stage_')) filtered = allMatches.filter(m => m.stage === activeFilter.slice(6));
+  else if (activeFilter.startsWith('g_'))   filtered = allMatches.filter(m => m.group_letter === activeFilter.slice(2));
 
   const container = document.getElementById('admin-matches');
   if (!filtered.length) {
@@ -45,33 +94,23 @@ function renderMatches() {
     return;
   }
 
-  container.innerHTML = filtered.map(m => {
-    const d = new Date(m.scheduled_at.replace(' ', 'T') + 'Z');
-    const dateStr = d.toLocaleDateString('es-AR', { weekday: 'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-    return `
-      <div class="match-card" style="margin-bottom:.75rem;">
-        <div class="match-header">
-          <span>Grupo ${m.group_letter || m.stage} · ${m.venue || ''}</span>
-          <span>${dateStr}</span>
-        </div>
-        <div class="match-body">
-          <div class="match-team">${m.team1_flag} ${m.team1_name}</div>
-          <div class="match-center">
-            ${m.is_finished
-              ? `<div class="match-score">${m.team1_score} – ${m.team2_score}</div>
-                 <span class="badge badge-green" style="font-size:.7rem;">Finalizado</span>`
-              : `<div class="match-vs">vs</div>`}
-          </div>
-          <div class="match-team right">${m.team2_flag} ${m.team2_name}</div>
-        </div>
-        <div style="padding:.5rem 1rem; border-top:1px solid var(--border); text-align:right;">
-          <button class="btn btn-accent btn-sm btn-load-result" data-match-id="${m.id}" data-name="${m.team1_name} vs ${m.team2_name}">
-            ${m.is_finished ? '✏️ Editar resultado' : '⚽ Cargar resultado'}
-          </button>
-        </div>
-      </div>`;
-  }).join('');
+  const hasKnockout = filtered.some(m => m.stage !== 'group');
+  const isGroupOnly = filtered.every(m => m.stage === 'group');
+  let html = '';
 
+  if (!hasKnockout || isGroupOnly) {
+    html = filtered.map(renderMatchCard).join('');
+  } else {
+    const byStage = {};
+    filtered.forEach(m => { (byStage[m.stage] = byStage[m.stage] || []).push(m); });
+    STAGE_ORDER.forEach(stage => {
+      if (!byStage[stage]) return;
+      if (stage !== 'group') html += `<div class="stage-section-label">${STAGE_LABELS[stage] || stage}</div>`;
+      html += byStage[stage].map(renderMatchCard).join('');
+    });
+  }
+
+  container.innerHTML = html;
   container.querySelectorAll('.btn-load-result').forEach(btn => {
     btn.addEventListener('click', () => openResultModal(parseInt(btn.dataset.matchId), btn.dataset.name));
   });
@@ -190,6 +229,37 @@ document.getElementById('btn-remap').addEventListener('click', () =>
 
 document.getElementById('btn-sync').addEventListener('click', () =>
   runSync('btn-sync', '🔄 Sync resultados', '/admin/sync/results'));
+
+document.getElementById('btn-import-stage').addEventListener('click', async () => {
+  const stage = document.getElementById('select-stage').value;
+  const resultEl = document.getElementById('import-stage-result');
+  if (!stage) {
+    resultEl.className = 'alert alert-danger';
+    resultEl.textContent = 'Seleccioná una fase antes de importar.';
+    return;
+  }
+  const btn = document.getElementById('btn-import-stage');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Importando...';
+  resultEl.className = 'hidden';
+  try {
+    const res = await api.post('/admin/sync/import-stage', { stage });
+    resultEl.className = 'alert alert-success';
+    const lines = [];
+    if (res.imported != null) lines.push(`Partidos importados: <strong>${res.imported}</strong>`);
+    if (res.skipped  != null && res.skipped > 0) lines.push(`Omitidos (TBD o ya existentes): ${res.skipped}`);
+    if (res.message) lines.push(res.message);
+    resultEl.innerHTML = lines.join('<br>') || 'Operación completada.';
+    loadSyncStatus();
+    loadMatches();
+  } catch (err) {
+    resultEl.className = 'alert alert-danger';
+    resultEl.textContent = `Error: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📥 Importar fase';
+  }
+});
 
 loadSyncStatus();
 loadMatches().catch(console.error);

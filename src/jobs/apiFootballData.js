@@ -31,4 +31,10 @@ async function getWCFinishedMatches() {
   return data.matches || [];
 }
 
-module.exports = { getWCGroupStageMatches, getWCFinishedMatches };
+// stage: 'LAST_32' | 'LAST_16' | 'QUARTER_FINALS' | 'SEMI_FINALS' | 'THIRD_PLACE' | 'FINAL'
+async function getWCMatchesByStage(stage) {
+  const data = await fdFetch(`/competitions/${WC_CODE}/matches?season=${WC_SEASON}&stage=${stage}`);
+  return data.matches || [];
+}
+
+module.exports = { getWCGroupStageMatches, getWCFinishedMatches, getWCMatchesByStage };

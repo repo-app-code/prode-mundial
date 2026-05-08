@@ -4,6 +4,18 @@ let allMatches = [];
 let predictions = {};
 let activeFilter = 'all';
 
+const STAGE_LABELS = {
+  group:  'Fase de Grupos',
+  r32:    'Ronda de 32',
+  r16:    'Octavos de Final',
+  qf:     'Cuartos de Final',
+  sf:     'Semifinales',
+  third:  'Tercer Puesto',
+  final:  'Final',
+};
+
+const STAGE_ORDER = ['group', 'r32', 'r16', 'qf', 'sf', 'third', 'final'];
+
 async function loadMatches() {
   const [matches, preds] = await Promise.all([
     api.get('/matches'),
@@ -15,15 +27,29 @@ async function loadMatches() {
   renderMatches();
 }
 
+function hasKnockout() {
+  return allMatches.some(m => m.stage !== 'group');
+}
+
 function renderFilters() {
   const groups = [...new Set(allMatches.filter(m => m.group_letter).map(m => m.group_letter))].sort();
-  const bar = document.getElementById('filter-bar');
+  const knockoutStages = [...new Set(allMatches.filter(m => m.stage !== 'group').map(m => m.stage))]
+    .sort((a, b) => STAGE_ORDER.indexOf(a) - STAGE_ORDER.indexOf(b));
+
   const filters = [
-    { key: 'all', label: 'Todos' },
-    { key: 'pending', label: 'Sin pronosticar' },
+    { key: 'all',      label: 'Todos' },
+    { key: 'pending',  label: 'Sin pronosticar' },
     { key: 'finished', label: 'Finalizados' },
-    ...groups.map(g => ({ key: `group_${g}`, label: `Grupo ${g}` })),
   ];
+
+  if (knockoutStages.length) {
+    filters.push({ key: 'grupos', label: 'Fase de Grupos' });
+    knockoutStages.forEach(s => filters.push({ key: `stage_${s}`, label: STAGE_LABELS[s] || s }));
+  }
+
+  filters.push(...groups.map(g => ({ key: `group_${g}`, label: `Grupo ${g}` })));
+
+  const bar = document.getElementById('filter-bar');
   bar.innerHTML = filters.map(f =>
     `<button class="filter-btn ${activeFilter === f.key ? 'active' : ''}" data-key="${f.key}">${f.label}</button>`
   ).join('');
@@ -39,13 +65,11 @@ function renderFilters() {
 
 function renderMatches() {
   let filtered = allMatches;
-  if (activeFilter === 'pending') {
-    filtered = allMatches.filter(m => !m.is_finished && !predictions[m.id]);
-  } else if (activeFilter === 'finished') {
-    filtered = allMatches.filter(m => m.is_finished);
-  } else if (activeFilter.startsWith('group_')) {
-    filtered = allMatches.filter(m => m.group_letter === activeFilter.slice(6));
-  }
+  if      (activeFilter === 'pending')         filtered = allMatches.filter(m => !m.is_finished && !predictions[m.id]);
+  else if (activeFilter === 'finished')        filtered = allMatches.filter(m => m.is_finished);
+  else if (activeFilter === 'grupos')          filtered = allMatches.filter(m => m.stage === 'group');
+  else if (activeFilter.startsWith('stage_'))  filtered = allMatches.filter(m => m.stage === activeFilter.slice(6));
+  else if (activeFilter.startsWith('group_'))  filtered = allMatches.filter(m => m.group_letter === activeFilter.slice(6));
 
   const container = document.getElementById('matches-container');
   if (!filtered.length) {
@@ -53,41 +77,61 @@ function renderMatches() {
     return;
   }
 
-  // Group by date
-  const byDate = {};
-  filtered.forEach(m => {
-    const d = new Date(m.scheduled_at.replace(' ', 'T') + 'Z');
-    const key = d.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    if (!byDate[key]) byDate[key] = [];
-    byDate[key].push(m);
-  });
+  // Fase de grupos: agrupar por fecha
+  // Playoff: agrupar por fase y dentro por fecha
+  const isGroupOnly = filtered.every(m => m.stage === 'group');
 
-  container.innerHTML = Object.entries(byDate).map(([date, matches]) => `
-    <div class="match-group-label">${date}</div>
-    ${matches.map(m => renderMatchCard(m)).join('')}
-  `).join('');
+  let html = '';
 
-  // Attach save handlers
+  if (isGroupOnly) {
+    html = renderGroupedByDate(filtered);
+  } else {
+    // Agrupar por stage primero, luego por fecha dentro de cada stage
+    const byStage = {};
+    filtered.forEach(m => {
+      if (!byStage[m.stage]) byStage[m.stage] = [];
+      byStage[m.stage].push(m);
+    });
+    STAGE_ORDER.forEach(stage => {
+      if (!byStage[stage]) return;
+      if (stage !== 'group') {
+        html += `<div class="stage-section-label">${STAGE_LABELS[stage] || stage}</div>`;
+      }
+      html += renderGroupedByDate(byStage[stage]);
+    });
+  }
+
+  container.innerHTML = html;
   container.querySelectorAll('.btn-save-pred').forEach(btn => {
     btn.addEventListener('click', () => savePrediction(parseInt(btn.dataset.matchId)));
   });
 }
 
+function renderGroupedByDate(matches) {
+  const byDate = {};
+  matches.forEach(m => {
+    const d = new Date(m.scheduled_at.replace(' ', 'T') + 'Z');
+    const key = d.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(m);
+  });
+  return Object.entries(byDate).map(([date, ms]) => `
+    <div class="match-group-label">${date}</div>
+    ${ms.map(m => renderMatchCard(m)).join('')}
+  `).join('');
+}
+
 function renderMatchCard(m) {
-  const now = new Date();
+  const now       = new Date();
   const matchDate = new Date(m.scheduled_at.replace(' ', 'T') + 'Z');
-  const isLocked = now >= matchDate;
-  const pred = predictions[m.id];
+  const isLocked  = now >= matchDate;
+  const pred      = predictions[m.id];
+  const timeStr   = matchDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  const stageStr  = m.group_letter ? `Grupo ${m.group_letter}` : (STAGE_LABELS[m.stage] || m.stage);
 
-  const timeStr = matchDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  const groupStr = m.group_letter ? `Grupo ${m.group_letter}` : m.stage;
-
-  let scoreCenter = '';
-  if (m.is_finished) {
-    scoreCenter = `<div class="match-score">${m.team1_score} – ${m.team2_score}</div>`;
-  } else {
-    scoreCenter = `<div class="match-vs">vs</div><div style="font-size:.75rem; color:var(--text-muted);">${timeStr}</div>`;
-  }
+  let scoreCenter = m.is_finished
+    ? `<div class="match-score">${m.team1_score} – ${m.team2_score}</div>`
+    : `<div class="match-vs">vs</div><div style="font-size:.75rem; color:var(--text-muted);">${timeStr}</div>`;
 
   let predRow = '';
   if (m.is_finished && pred) {
@@ -121,7 +165,7 @@ function renderMatchCard(m) {
   return `
     <div class="match-card" id="match_${m.id}">
       <div class="match-header">
-        <span>${groupStr} · ${m.venue || ''}</span>
+        <span>${stageStr} · ${m.venue || ''}</span>
         <span>${matchDate.toLocaleDateString('es-AR', { day:'2-digit', month:'short' })}</span>
       </div>
       <div class="match-body">
@@ -142,10 +186,7 @@ function renderMatchCard(m) {
 async function savePrediction(matchId) {
   const s1 = document.getElementById(`p1_${matchId}`).value;
   const s2 = document.getElementById(`p2_${matchId}`).value;
-  if (s1 === '' || s2 === '') {
-    alert('Ingresá los dos marcadores antes de guardar.');
-    return;
-  }
+  if (s1 === '' || s2 === '') { alert('Ingresá los dos marcadores antes de guardar.'); return; }
   try {
     await api.put(`/predictions/${matchId}`, {
       team1_score: parseInt(s1),

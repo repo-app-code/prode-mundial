@@ -1,6 +1,6 @@
 require('dotenv').config();
 const db = require('../config/database');
-const { getWCGroupStageMatches } = require('./apiFootballData');
+const { getWCGroupStageMatches, getWCMatchesByStage } = require('./apiFootballData');
 const { getFinishedFixtures, getAllFixtures } = require('./apiFootball');
 
 // ─── Datos locales de equipos ───────────────────────────────────────────────
@@ -339,4 +339,58 @@ function calcPoints(p1, p2, a1, a2) {
   return 0;
 }
 
-module.exports = { setupFromFootballData, remapToApiFootball, syncResults };
+// ─── Importar una fase de playoff ────────────────────────────────────────────
+// Trae los partidos de una fase eliminatoria desde football-data.org
+// e inserta solo los que ya tienen ambos equipos definidos.
+// No toca predicciones existentes — solo agrega partidos nuevos.
+async function importKnockoutStage(fdStage) {
+  const matches = await getWCMatchesByStage(fdStage);
+  if (!matches.length) {
+    return { imported: 0, skipped: 0, message: 'La API no devolvió partidos para esta fase.' };
+  }
+
+  let imported = 0, skipped = 0, tbd = 0;
+
+  const run = db.transaction(() => {
+    for (const m of matches) {
+      const homeTla = m.homeTeam?.tla;
+      const awayTla = m.awayTeam?.tla;
+
+      // Equipos aún no definidos (TBD)
+      if (!homeTla || !awayTla) { tbd++; continue; }
+
+      const homeTeam = db.prepare('SELECT id FROM teams WHERE code = ?').get(homeTla);
+      const awayTeam = db.prepare('SELECT id FROM teams WHERE code = ?').get(awayTla);
+
+      if (!homeTeam || !awayTeam) { skipped++; continue; }
+
+      // Evitar duplicados
+      const existing = db.prepare('SELECT id FROM matches WHERE external_id = ?').get(m.id);
+      if (existing) { skipped++; continue; }
+
+      const stage       = stageFromFD(m.stage);
+      const scheduledAt = m.utcDate
+        ? new Date(m.utcDate).toISOString().replace('T', ' ').substring(0, 19)
+        : null;
+
+      db.prepare(`
+        INSERT INTO matches (external_id, team1_id, team2_id, scheduled_at, stage, group_letter)
+        VALUES (?, ?, ?, ?, ?, NULL)
+      `).run(m.id, homeTeam.id, awayTeam.id, scheduledAt, stage);
+
+      imported++;
+    }
+  });
+
+  run();
+
+  return {
+    imported,
+    skipped,
+    tbd,
+    total: matches.length,
+    message: tbd > 0 ? `${tbd} partido(s) aún sin equipos definidos (TBD), se importarán cuando se confirmen.` : null,
+  };
+}
+
+module.exports = { setupFromFootballData, remapToApiFootball, syncResults, importKnockoutStage };

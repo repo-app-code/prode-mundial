@@ -63,6 +63,31 @@
       <div id="sync-result" class="hidden" style="padding:.75rem 1.25rem; border-top:1px solid var(--border); font-size:.85rem;"></div>
     </div>
 
+    <!-- Panel: importar fase knockout -->
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="card-header">🏆 Importar fase de Playoff</div>
+      <div class="card-body">
+        <div style="font-size:.85rem; color:var(--text-muted); margin-bottom:.75rem;">
+          Una vez confirmados los cruces de cada ronda, importá los partidos de esa fase desde <strong>football-data.org</strong>.
+          Los partidos con equipos aún no definidos (TBD) se omiten hasta que se conozcan.
+          <strong>No afecta predicciones existentes.</strong>
+        </div>
+        <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;">
+          <select id="select-stage" class="form-control" style="width:auto; min-width:200px;">
+            <option value="">— Seleccionar fase —</option>
+            <option value="LAST_32">Ronda de 32</option>
+            <option value="LAST_16">Octavos de Final</option>
+            <option value="QUARTER_FINALS">Cuartos de Final</option>
+            <option value="SEMI_FINALS">Semifinales</option>
+            <option value="THIRD_PLACE">Tercer Puesto</option>
+            <option value="FINAL">Final</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="btn-import-stage">📥 Importar fase</button>
+        </div>
+        <div id="import-stage-result" class="hidden" style="margin-top:.75rem; font-size:.85rem;"></div>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom:1rem; padding:.75rem 1.25rem;">
       <div style="font-size:.85rem; color:var(--text-muted);">
         También podés cargar resultados manualmente desde las tarjetas de abajo, por si el sync automático no llega a tiempo.
