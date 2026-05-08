@@ -70,7 +70,7 @@ function renderRanking(ranking) {
   el.innerHTML = `
     <div class="card">
       <div class="card-body" style="padding:0;">
-        <table class="ranking-table">
+        <div class="ranking-table-wrap"><table class="ranking-table">
           <thead><tr>
             <th>#</th><th>Usuario</th><th>Puntos</th><th>Pronósticos</th><th>Exactos</th>
           </tr></thead>
@@ -84,7 +84,7 @@ function renderRanking(ranking) {
                 <td>${r.exact_results}</td>
               </tr>`).join('')}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>`;
 }

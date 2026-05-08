@@ -58,7 +58,7 @@ async function loadDashboard() {
     rankingEl.innerHTML = '<div class="empty-state"><p>Aún no hay puntos registrados</p></div>';
   } else {
     rankingEl.innerHTML = `
-      <table class="ranking-table">
+      <div class="ranking-table-wrap"><table class="ranking-table">
         <thead><tr>
           <th>#</th><th>Usuario</th><th>Pts</th><th>Exactos</th>
         </tr></thead>
@@ -71,7 +71,7 @@ async function loadDashboard() {
               <td>${r.exact_results}</td>
             </tr>`).join('')}
         </tbody>
-      </table>`;
+      </table></div>`;
   }
 }
 

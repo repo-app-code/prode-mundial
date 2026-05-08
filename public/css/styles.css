@@ -568,10 +568,71 @@ nav {
   margin-bottom: .75rem;
 }
 
+/* ── DASHBOARD PANELS ── */
+.dashboard-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 640px) {
-  .container { padding: 1rem; }
+  .container { padding: .75rem; }
+
+  /* Nav: brand + logout en fila 1, links en fila 2 scrollable */
+  nav {
+    flex-wrap: wrap;
+    height: auto;
+    padding: .5rem .75rem;
+    gap: .2rem;
+  }
+  .nav-brand { order: 1; flex: 1; font-size: 1rem; }
+  .nav-user  { order: 2; flex-shrink: 0; gap: .4rem; }
+  .nav-links {
+    order: 3;
+    flex-basis: 100%;
+    overflow-x: auto;
+    padding: .2rem 0 .35rem;
+    scrollbar-width: none;
+    gap: .15rem;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links a { padding: .3rem .6rem; font-size: .78rem; white-space: nowrap; }
+  .nav-greeting { display: none; }
+
+  /* Stats */
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .match-team .team-name { display: none; }
-  .nav-links a { padding: .4rem .5rem; font-size: .8rem; }
+
+  /* Dashboard panels: apilar en mobile */
+  .dashboard-panels { grid-template-columns: 1fr; }
+
+  /* Match cards: mostrar nombres más pequeños en lugar de ocultarlos */
+  .match-team .team-name {
+    font-size: .8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 90px;
+  }
+  .team-flag { font-size: 1.2rem; }
+
+  /* Prediction row: apilar en pantallas muy chicas */
+  .prediction-row { gap: .5rem; }
+
+  /* Ranking table: scroll horizontal */
+  .ranking-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ranking-table { font-size: .82rem; min-width: 340px; }
+  .ranking-table th, .ranking-table td { padding: .5rem .6rem; }
+
+  /* Auth */
+  .auth-card { padding: 1.5rem 1.25rem; }
+
+  /* Groups grid: 1 columna */
+  .groups-grid { grid-template-columns: 1fr; }
+
+  /* Page title */
+  .page-title { font-size: 1.2rem; margin-bottom: 1rem; }
+
+  /* Groups page header buttons */
+  .flex-between { flex-wrap: wrap; gap: .5rem; }
 }
