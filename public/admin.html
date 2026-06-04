@@ -117,6 +117,34 @@
     </div>
   </div>
 
+  <!-- Card: Gestión de usuarios -->
+  <div class="container" style="padding-top:0;">
+    <div class="card">
+      <div class="card-header">👤 Usuarios registrados</div>
+      <div class="card-body" style="padding:0;" id="users-list">
+        <div class="empty-state"><span class="spinner"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: contraseña temporal -->
+  <div class="modal-overlay hidden" id="modal-temp-pass">
+    <div class="modal">
+      <div class="modal-title">🔑 Contraseña temporal generada</div>
+      <p style="font-size:.9rem; color:var(--text-muted); margin-bottom:1rem;">
+        Pasale esta contraseña al usuario <strong id="temp-pass-username"></strong>.
+        Una vez que inicie sesión debería cambiarla.
+      </p>
+      <div style="background:var(--bg); border-radius:8px; padding:1rem; text-align:center;">
+        <span id="temp-pass-value" style="font-family:monospace; font-size:1.4rem; font-weight:700; letter-spacing:.12em; color:var(--primary);"></span>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-copy-temp-pass">Copiar</button>
+        <button class="btn btn-primary" id="btn-close-temp-pass">Listo</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/api.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/nav.js"></script>

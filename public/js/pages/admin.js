@@ -261,5 +261,54 @@ document.getElementById('btn-import-stage').addEventListener('click', async () =
   }
 });
 
+// ── Usuarios ──
+async function loadUsers() {
+  const users = await api.get('/admin/users');
+  const el = document.getElementById('users-list');
+  if (!users.length) {
+    el.innerHTML = '<div class="empty-state"><p>No hay usuarios registrados</p></div>';
+    return;
+  }
+  el.innerHTML = users.map(u => `
+    <div class="member-row" style="padding:.65rem 1.25rem;">
+      <div class="member-avatar">${u.username[0].toUpperCase()}</div>
+      <div class="member-info">
+        <div class="member-name">${u.username}</div>
+        <div class="member-meta">${u.email}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm btn-reset-pass" data-id="${u.id}" data-username="${u.username}">
+        🔑 Resetear contraseña
+      </button>
+    </div>`).join('');
+
+  el.querySelectorAll('.btn-reset-pass').forEach(btn => {
+    btn.addEventListener('click', () => resetPassword(parseInt(btn.dataset.id), btn.dataset.username));
+  });
+}
+
+async function resetPassword(userId, username) {
+  if (!confirm(`¿Resetear la contraseña de ${username}? Se generará una contraseña temporal.`)) return;
+  try {
+    const res = await api.post(`/admin/users/${userId}/reset-password`);
+    document.getElementById('temp-pass-username').textContent = res.username;
+    document.getElementById('temp-pass-value').textContent    = res.temp_password;
+    document.getElementById('modal-temp-pass').classList.remove('hidden');
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+document.getElementById('btn-close-temp-pass').addEventListener('click', () => {
+  document.getElementById('modal-temp-pass').classList.add('hidden');
+});
+
+document.getElementById('btn-copy-temp-pass').addEventListener('click', async () => {
+  const val = document.getElementById('temp-pass-value').textContent;
+  await navigator.clipboard.writeText(val);
+  document.getElementById('btn-copy-temp-pass').textContent = '¡Copiado!';
+  setTimeout(() => { document.getElementById('btn-copy-temp-pass').textContent = 'Copiar'; }, 1500);
+});
+
 loadSyncStatus();
 loadMatches().catch(console.error);
+loadUsers().catch(console.error);

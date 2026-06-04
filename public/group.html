@@ -40,10 +40,20 @@
     </div>
 
     <div class="tab-panel hidden" id="tab-admin">
-      <div class="card">
+      <div class="card" style="margin-bottom:1rem;">
         <div class="card-header">⏳ Solicitudes pendientes</div>
         <div class="card-body" id="pending-list">
           <div class="empty-state"><span class="spinner"></span></div>
+        </div>
+      </div>
+      <div class="card hidden" id="danger-zone" style="border:1.5px solid var(--danger);">
+        <div class="card-header" style="color:var(--danger);">⚠️ Zona de peligro</div>
+        <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+          <div>
+            <div style="font-weight:600; margin-bottom:.25rem;">Eliminar grupo</div>
+            <div style="font-size:.85rem; color:var(--text-muted);">Se eliminan todos los miembros. Las predicciones de los usuarios no se ven afectadas.</div>
+          </div>
+          <button class="btn btn-danger" onclick="deleteGroup()">🗑️ Eliminar grupo</button>
         </div>
       </div>
     </div>

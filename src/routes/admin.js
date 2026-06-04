@@ -1,4 +1,6 @@
 const express = require('express');
+const bcrypt  = require('bcryptjs');
+const crypto  = require('crypto');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { setupFromFootballData, remapToApiFootball, syncResults, importKnockoutStage } = require('../jobs/syncResults');
 const db = require('../config/database');
@@ -62,6 +64,28 @@ router.post('/sync/import-stage', authenticate, requireAdmin, async (req, res) =
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// List all non-admin users
+router.get('/users', authenticate, requireAdmin, (req, res) => {
+  const users = db.prepare(
+    'SELECT id, username, email, created_at FROM users WHERE is_admin = 0 ORDER BY username'
+  ).all();
+  res.json(users);
+});
+
+// Reset password (generates a temporary password, shown once)
+router.post('/users/:id/reset-password', authenticate, requireAdmin, (req, res) => {
+  const user = db.prepare(
+    'SELECT id, username FROM users WHERE id = ? AND is_admin = 0'
+  ).get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+  const tempPassword = crypto.randomBytes(5).toString('hex'); // 10 chars
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+    .run(bcrypt.hashSync(tempPassword, 10), req.params.id);
+
+  res.json({ username: user.username, temp_password: tempPassword });
 });
 
 module.exports = router;

@@ -191,4 +191,22 @@ router.delete('/:id/members/:userId', authenticate, (req, res) => {
   res.json({ message: isSelf ? 'Saliste del grupo' : 'Miembro eliminado' });
 });
 
+// Delete group (creator only)
+router.delete('/:id', authenticate, (req, res) => {
+  const membership = db.prepare(
+    "SELECT role FROM group_members WHERE group_id = ? AND user_id = ? AND status = 'approved'"
+  ).get(req.params.id, req.user.id);
+
+  if (!membership || membership.role !== 'creator') {
+    return res.status(403).json({ error: 'Solo el creador puede eliminar el grupo' });
+  }
+
+  db.transaction(() => {
+    db.prepare('DELETE FROM group_members WHERE group_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM private_groups WHERE id = ?').run(req.params.id);
+  })();
+
+  res.json({ message: 'Grupo eliminado' });
+});
+
 module.exports = router;

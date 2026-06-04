@@ -29,6 +29,9 @@ async function loadGroup() {
       document.getElementById('tab-admin').classList.remove('hidden');
       renderPending(group);
     }
+    if (group.my_role === 'creator') {
+      document.getElementById('danger-zone').classList.remove('hidden');
+    }
   } catch (err) {
     document.getElementById('group-header').innerHTML =
       `<div class="alert alert-danger">${err.message}</div>`;
@@ -168,6 +171,14 @@ async function leaveGroup() {
   if (!confirm('¿Salir de este grupo?')) return;
   try {
     await api.delete(`/groups/${groupId}/members/${user.id}`);
+    window.location.href = '/groups.html';
+  } catch (err) { alert(err.message); }
+}
+
+async function deleteGroup() {
+  if (!confirm(`¿Eliminar el grupo "${groupData.name}"? Esta acción no se puede deshacer.`)) return;
+  try {
+    await api.delete(`/groups/${groupId}`);
     window.location.href = '/groups.html';
   } catch (err) { alert(err.message); }
 }
