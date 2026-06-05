@@ -11,11 +11,11 @@ function getBaseUrl() {
 }
 
 async function sendMail({ to, subject, html }) {
-  console.log('BREVO_API_KEY length:', process.env.BREVO_API_KEY?.length, '| starts with:', process.env.BREVO_API_KEY?.slice(0, 8));
+  console.log('BREVO_KEY length:', process.env.BREVO_KEY?.length, '| starts with:', process.env.BREVO_KEY?.slice(0, 8));
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'api-key': process.env.BREVO_API_KEY,
+      'api-key': process.env.BREVO_KEY,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
