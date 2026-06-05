@@ -1,9 +1,8 @@
-const express    = require('express');
-const bcrypt     = require('bcryptjs');
-const jwt        = require('jsonwebtoken');
-const crypto     = require('crypto');
-const nodemailer = require('nodemailer');
-const db         = require('../config/database');
+const express = require('express');
+const bcrypt  = require('bcryptjs');
+const jwt     = require('jsonwebtoken');
+const crypto  = require('crypto');
+const db      = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 
 function getBaseUrl() {
@@ -11,13 +10,24 @@ function getBaseUrl() {
   return url.replace(/\/[^/]+\.html$/, '').replace(/\/$/, '');
 }
 
-function createMailer() {
-  return nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false,
-    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+async function sendMail({ to, subject, html }) {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': process.env.BREVO_API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender:      { name: 'Prode Mundial 2026', email: process.env.MAIL_USER },
+      to:          [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
   });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Brevo API ${res.status}: ${body}`);
+  }
 }
 
 const router = express.Router();
@@ -98,8 +108,7 @@ router.post('/forgot-password', async (req, res) => {
   const resetUrl = `${getBaseUrl()}/reset-password.html?token=${token}`;
 
   try {
-    await createMailer().sendMail({
-      from:    process.env.MAIL_FROM,
+    await sendMail({
       to:      email,
       subject: 'Recupero de contraseña – Prode Mundial 2026',
       html: `
