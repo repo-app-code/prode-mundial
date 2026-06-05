@@ -19,4 +19,15 @@ if (!tableInfo('matches').find(c => c.name === 'sync_log')) {
   console.log('matches.sync_log agregado');
 }
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    token      TEXT NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    used       INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 console.log('Migración completada.');
