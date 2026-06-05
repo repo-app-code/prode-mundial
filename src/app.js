@@ -7,6 +7,7 @@ const rateLimit  = require('express-rate-limit');
 
 const app = express();
 
+app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
