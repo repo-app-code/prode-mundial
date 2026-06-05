@@ -12,6 +12,7 @@ function getBaseUrl() {
 
 async function sendMail({ to, subject, html }) {
   console.log('BREVO_KEY length:', process.env.BREVO_KEY?.length, '| starts with:', process.env.BREVO_KEY?.slice(0, 8));
+  console.log('All env keys:', Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('PASS') && !k.includes('KEY') && !k.includes('TOKEN')).join(', '));
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
