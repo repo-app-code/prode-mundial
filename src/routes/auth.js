@@ -13,7 +13,7 @@ function getBaseUrl() {
 
 function createMailer() {
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
+    host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false,
     auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
