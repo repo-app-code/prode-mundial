@@ -1,6 +1,6 @@
 require('dotenv').config();
 const db = require('../config/database');
-const { getWCGroupStageMatches, getWCMatchesByStage } = require('./apiFootballData');
+const { getWCGroupStageMatches, getWCMatchesByStage, getWCFinishedMatches } = require('./apiFootballData');
 const { getFinishedFixtures, getAllFixtures } = require('./apiFootball');
 
 // ─── Datos locales de equipos ───────────────────────────────────────────────
@@ -393,4 +393,49 @@ async function importKnockoutStage(fdStage) {
   };
 }
 
-module.exports = { setupFromFootballData, remapToApiFootball, syncResults, importKnockoutStage };
+// ─── Sync de resultados desde football-data.org ──────────────────────────────
+// Alternativa a API-Football cuando el plan gratuito no tiene acceso a 2026.
+// Usa los external_ids originales de football-data.org (antes del remap).
+// Nunca borra ni modifica predicciones — solo actualiza scores y points_earned.
+async function syncResultsFromFD() {
+  const finished = await getWCFinishedMatches();
+  if (!finished?.length) {
+    return { updated: 0, skipped: 0, message: 'No hay partidos finalizados en football-data.org todavía.' };
+  }
+
+  let updated = 0, skipped = 0;
+
+  const updateMatch  = db.prepare(`
+    UPDATE matches SET team1_score = ?, team2_score = ?, is_finished = 1, sync_log = ?
+    WHERE external_id = ? AND is_finished = 0
+  `);
+  const updatePoints = db.prepare('UPDATE predictions SET points_earned = ? WHERE id = ?');
+
+  const run = db.transaction(() => {
+    for (const m of finished) {
+      const score = m.score?.fullTime;
+      if (score?.home == null || score?.away == null) { skipped++; continue; }
+
+      const note = `football-data.org · ${new Date().toISOString()}`;
+      const res  = updateMatch.run(score.home, score.away, note, m.id);
+
+      if (res.changes === 0) { skipped++; continue; }
+
+      const match = db.prepare('SELECT id FROM matches WHERE external_id = ?').get(m.id);
+      if (!match) continue;
+
+      for (const pred of db.prepare(
+        'SELECT id, team1_score AS p1, team2_score AS p2 FROM predictions WHERE match_id = ?'
+      ).all(match.id)) {
+        updatePoints.run(calcPoints(pred.p1, pred.p2, score.home, score.away), pred.id);
+      }
+
+      updated++;
+    }
+  });
+
+  run();
+  return { source: 'football-data.org', updated, skipped, total: finished.length };
+}
+
+module.exports = { setupFromFootballData, remapToApiFootball, syncResults, syncResultsFromFD, importKnockoutStage };

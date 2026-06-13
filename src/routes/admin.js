@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt  = require('bcryptjs');
 const crypto  = require('crypto');
 const { authenticate, requireAdmin } = require('../middleware/auth');
-const { setupFromFootballData, remapToApiFootball, syncResults, importKnockoutStage } = require('../jobs/syncResults');
+const { setupFromFootballData, remapToApiFootball, syncResults, syncResultsFromFD, importKnockoutStage } = require('../jobs/syncResults');
 const db = require('../config/database');
 
 const router = express.Router();
@@ -38,11 +38,22 @@ router.post('/sync/remap-apifootball', authenticate, requireAdmin, async (req, r
   }
 });
 
-// Paso 3 (durante el torneo): Sync de resultados desde API-Football
+// Paso 3a (durante el torneo): Sync de resultados desde API-Football
 router.post('/sync/results', authenticate, requireAdmin, async (req, res) => {
   try {
     const result = await syncResults();
     lastSync = { type: 'sync-results', at: new Date().toISOString(), result };
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Paso 3b: Sync de resultados desde football-data.org (alternativa si API-Football no está disponible)
+router.post('/sync/results-fd', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await syncResultsFromFD();
+    lastSync = { type: 'sync-results-fd', at: new Date().toISOString(), result };
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

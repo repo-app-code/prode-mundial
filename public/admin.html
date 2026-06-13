@@ -49,12 +49,21 @@
           </div>
 
           <div style="background:var(--secondary-light); border-radius:8px; padding:1rem;">
-            <div style="font-weight:700; margin-bottom:.35rem;">Paso 3 · Durante el torneo</div>
+            <div style="font-weight:700; margin-bottom:.35rem;">Paso 3a · Durante el torneo</div>
             <div style="font-size:.82rem; color:var(--text-muted); margin-bottom:.75rem;">
               Trae resultados de partidos finalizados desde <strong>API-Football</strong>
               y calcula los puntos automáticamente.
             </div>
-            <button class="btn btn-secondary btn-sm" id="btn-sync">🔄 Sync resultados</button>
+            <button class="btn btn-secondary btn-sm" id="btn-sync">🔄 Sync (API-Football)</button>
+          </div>
+
+          <div style="background:var(--primary-light); border-radius:8px; padding:1rem;">
+            <div style="font-weight:700; margin-bottom:.35rem;">Paso 3b · Alternativa</div>
+            <div style="font-size:.82rem; color:var(--text-muted); margin-bottom:.75rem;">
+              Trae resultados desde <strong>football-data.org</strong>.
+              Usar mientras API-Football no tenga habilitada la temporada 2026.
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-sync-fd">🔄 Sync (football-data.org)</button>
           </div>
 
         </div>

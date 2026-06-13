@@ -228,7 +228,10 @@ document.getElementById('btn-remap').addEventListener('click', () =>
   runSync('btn-remap', '🔗 Remap a API-Football', '/admin/sync/remap-apifootball'));
 
 document.getElementById('btn-sync').addEventListener('click', () =>
-  runSync('btn-sync', '🔄 Sync resultados', '/admin/sync/results'));
+  runSync('btn-sync', '🔄 Sync (API-Football)', '/admin/sync/results'));
+
+document.getElementById('btn-sync-fd').addEventListener('click', () =>
+  runSync('btn-sync-fd', '🔄 Sync (football-data.org)', '/admin/sync/results-fd'));
 
 document.getElementById('btn-import-stage').addEventListener('click', async () => {
   const stage = document.getElementById('select-stage').value;
