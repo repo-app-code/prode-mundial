@@ -24,7 +24,7 @@ router.get('/', authenticate, (req, res) => {
 
 // Create or update a prediction for a match
 router.put('/:matchId', authenticate, (req, res) => {
-  const { team1_score, team2_score } = req.body;
+  const { team1_score, team2_score, predicted_winner } = req.body;
   if (team1_score == null || team2_score == null) {
     return res.status(400).json({ error: 'Debes ingresar los dos marcadores' });
   }
@@ -41,14 +41,16 @@ router.put('/:matchId', authenticate, (req, res) => {
     'SELECT id FROM predictions WHERE user_id = ? AND match_id = ?'
   ).get(req.user.id, req.params.matchId);
 
+  const winner = predicted_winner || null;
+
   if (existing) {
     db.prepare(
-      'UPDATE predictions SET team1_score = ?, team2_score = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).run(team1_score, team2_score, existing.id);
+      'UPDATE predictions SET team1_score = ?, team2_score = ?, predicted_winner = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(team1_score, team2_score, winner, existing.id);
   } else {
     db.prepare(
-      'INSERT INTO predictions (user_id, match_id, team1_score, team2_score) VALUES (?, ?, ?, ?)'
-    ).run(req.user.id, req.params.matchId, team1_score, team2_score);
+      'INSERT INTO predictions (user_id, match_id, team1_score, team2_score, predicted_winner) VALUES (?, ?, ?, ?, ?)'
+    ).run(req.user.id, req.params.matchId, team1_score, team2_score, winner);
   }
 
   res.json({ message: 'Pronóstico guardado' });

@@ -15,6 +15,7 @@ const STAGE_ORDER = ['group', 'r32', 'r16', 'qf', 'sf', 'third', 'final'];
 let allMatches = [];
 let activeFilter = 'all';
 let editingMatchId = null;
+let selectedResultWinner = null;
 
 async function loadMatches() {
   allMatches = await api.get('/matches');
@@ -118,18 +119,65 @@ function renderMatches() {
 
 function openResultModal(matchId, name) {
   editingMatchId = matchId;
+  selectedResultWinner = null;
   const match = allMatches.find(m => m.id === matchId);
   document.getElementById('result-modal-title').textContent = `Resultado: ${name}`;
   document.getElementById('result-score1').value = match?.team1_score ?? '';
   document.getElementById('result-score2').value = match?.team2_score ?? '';
   document.getElementById('result-alert').className = 'alert hidden';
+
+  const winnerSection = document.getElementById('result-winner-section');
+  const isPlayoff = match?.stage !== 'group';
+  if (isPlayoff) {
+    const btn1 = document.getElementById('result-winner-btn1');
+    const btn2 = document.getElementById('result-winner-btn2');
+    btn1.textContent = `${match.team1_flag} ${match.team1_name}`;
+    btn1.dataset.team = match.team1_code;
+    btn2.textContent = `${match.team2_flag} ${match.team2_name}`;
+    btn2.dataset.team = match.team2_code;
+    selectedResultWinner = match.winner_code || null;
+    updateResultWinnerBtns();
+    checkResultDraw();
+    winnerSection.style.display = '';
+  } else {
+    winnerSection.style.display = 'none';
+  }
+
   document.getElementById('modal-result').classList.remove('hidden');
   document.getElementById('result-score1').focus();
+}
+
+function updateResultWinnerBtns() {
+  document.querySelectorAll('.btn-result-winner').forEach(btn => {
+    btn.className = `btn btn-sm btn-result-winner ${btn.dataset.team === selectedResultWinner ? 'btn-primary' : 'btn-secondary'}`;
+  });
+}
+
+function checkResultDraw() {
+  const s1 = document.getElementById('result-score1').value;
+  const s2 = document.getElementById('result-score2').value;
+  const winnerSection = document.getElementById('result-winner-section');
+  const match = allMatches.find(m => m.id === editingMatchId);
+  if (!match || match.stage === 'group') return;
+  const isDraw = s1 !== '' && s2 !== '' && parseInt(s1) === parseInt(s2);
+  winnerSection.style.display = isDraw ? '' : 'none';
+  if (!isDraw) selectedResultWinner = null;
 }
 
 document.getElementById('btn-result-cancel').addEventListener('click', () => {
   document.getElementById('modal-result').classList.add('hidden');
   editingMatchId = null;
+  selectedResultWinner = null;
+});
+
+document.getElementById('result-score1').addEventListener('input', checkResultDraw);
+document.getElementById('result-score2').addEventListener('input', checkResultDraw);
+
+document.querySelectorAll('.btn-result-winner').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedResultWinner = btn.dataset.team;
+    updateResultWinnerBtns();
+  });
 });
 
 document.getElementById('btn-result-submit').addEventListener('click', async () => {
@@ -141,10 +189,19 @@ document.getElementById('btn-result-submit').addEventListener('click', async () 
     alertEl.className = 'alert alert-danger';
     return;
   }
+  const match = allMatches.find(m => m.id === editingMatchId);
+  const isPlayoff = match?.stage !== 'group';
+  const isDraw = parseInt(s1) === parseInt(s2);
+  if (isPlayoff && isDraw && !selectedResultWinner) {
+    alertEl.textContent = 'Para un empate, seleccioná quién avanzó';
+    alertEl.className = 'alert alert-danger';
+    return;
+  }
   try {
     await api.put(`/matches/${editingMatchId}/result`, {
       team1_score: parseInt(s1),
       team2_score: parseInt(s2),
+      ...(isPlayoff && isDraw ? { winner_code: selectedResultWinner } : {}),
     });
     alertEl.textContent = '¡Resultado guardado y puntos calculados!';
     alertEl.className = 'alert alert-success';

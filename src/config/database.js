@@ -79,4 +79,14 @@ db.exec(`
   );
 `);
 
+// Migrations
+const predCols  = db.pragma('table_info(predictions)').map(c => c.name);
+const matchCols = db.pragma('table_info(matches)').map(c => c.name);
+if (!predCols.includes('predicted_winner')) {
+  db.prepare('ALTER TABLE predictions ADD COLUMN predicted_winner TEXT').run();
+}
+if (!matchCols.includes('winner_code')) {
+  db.prepare('ALTER TABLE matches ADD COLUMN winner_code TEXT').run();
+}
+
 module.exports = db;

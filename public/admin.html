@@ -119,6 +119,13 @@
         <span style="font-size:1.5rem; color:var(--text-muted);">–</span>
         <input type="number" class="score-input form-control" id="result-score2" min="0" max="20" placeholder="0" style="width:64px; text-align:center; font-size:1.5rem; font-weight:700;">
       </div>
+      <div id="result-winner-section" style="display:none; text-align:center; margin-bottom:1rem;">
+        <div style="font-size:.85rem; color:var(--text-muted); margin-bottom:.5rem;">¿Quién avanzó?</div>
+        <div style="display:flex; gap:.5rem; justify-content:center;">
+          <button type="button" class="btn btn-sm btn-result-winner btn-secondary" id="result-winner-btn1" data-team="">—</button>
+          <button type="button" class="btn btn-sm btn-result-winner btn-secondary" id="result-winner-btn2" data-team="">—</button>
+        </div>
+      </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" id="btn-result-cancel">Cancelar</button>
         <button class="btn btn-primary" id="btn-result-submit">Guardar resultado</button>

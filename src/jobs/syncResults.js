@@ -301,28 +301,48 @@ async function syncResults() {
   let updated = 0, skipped = 0;
 
   const updateMatch  = db.prepare(`
-    UPDATE matches SET team1_score = ?, team2_score = ?, is_finished = 1, sync_log = ?
+    UPDATE matches SET team1_score = ?, team2_score = ?, winner_code = ?, is_finished = 1, sync_log = ?
     WHERE external_id = ? AND is_finished = 0
   `);
   const updatePoints = db.prepare('UPDATE predictions SET points_earned = ? WHERE id = ?');
+  const getMatch     = db.prepare(`
+    SELECT m.id, m.stage, t1.code AS team1_code, t2.code AS team2_code
+    FROM matches m
+    JOIN teams t1 ON t1.id = m.team1_id
+    JOIN teams t2 ON t2.id = m.team2_id
+    WHERE m.external_id = ?
+  `);
 
   const run = db.transaction(() => {
     for (const f of finished) {
       const score = f.goals;
       if (score.home == null || score.away == null) { skipped++; continue; }
 
+      const matchRow = getMatch.get(f.fixture.id);
+      if (!matchRow) { skipped++; continue; }
+
+      const isPlayoff = matchRow.stage !== 'group';
+      let winnerCode = null;
+      if (isPlayoff) {
+        if (f.teams?.home?.winner === true)      winnerCode = matchRow.team1_code;
+        else if (f.teams?.away?.winner === true) winnerCode = matchRow.team2_code;
+      }
+
       const note = `API-Football · ${new Date().toISOString()}`;
-      const res  = updateMatch.run(score.home, score.away, note, f.fixture.id);
+      const res  = updateMatch.run(score.home, score.away, winnerCode, note, f.fixture.id);
 
       if (res.changes === 0) { skipped++; continue; }
 
-      const match = db.prepare('SELECT id FROM matches WHERE external_id = ?').get(f.fixture.id);
-      if (!match) continue;
-
       for (const pred of db.prepare(
-        'SELECT id, team1_score AS p1, team2_score AS p2 FROM predictions WHERE match_id = ?'
-      ).all(match.id)) {
-        updatePoints.run(calcPoints(pred.p1, pred.p2, score.home, score.away), pred.id);
+        'SELECT id, team1_score AS p1, team2_score AS p2, predicted_winner FROM predictions WHERE match_id = ?'
+      ).all(matchRow.id)) {
+        updatePoints.run(calcPoints(pred.p1, pred.p2, score.home, score.away, {
+          isPlayoff,
+          predictedWinner: pred.predicted_winner,
+          actualWinner: winnerCode,
+          team1Code: matchRow.team1_code,
+          team2Code: matchRow.team2_code,
+        }), pred.id);
       }
 
       updated++;
@@ -331,12 +351,6 @@ async function syncResults() {
 
   run();
   return { source: 'api-football', updated, skipped, total: finished.length };
-}
-
-function calcPoints(p1, p2, a1, a2) {
-  if (p1 === a1 && p2 === a2) return 3;
-  if (Math.sign(p1 - p2) === Math.sign(a1 - a2)) return 1;
-  return 0;
 }
 
 // ─── Importar una fase de playoff ────────────────────────────────────────────
@@ -406,28 +420,48 @@ async function syncResultsFromFD() {
   let updated = 0, skipped = 0;
 
   const updateMatch  = db.prepare(`
-    UPDATE matches SET team1_score = ?, team2_score = ?, is_finished = 1, sync_log = ?
+    UPDATE matches SET team1_score = ?, team2_score = ?, winner_code = ?, is_finished = 1, sync_log = ?
     WHERE external_id = ? AND is_finished = 0
   `);
   const updatePoints = db.prepare('UPDATE predictions SET points_earned = ? WHERE id = ?');
+  const getMatch     = db.prepare(`
+    SELECT m2.id, t1.code AS team1_code, t2.code AS team2_code
+    FROM matches m2
+    JOIN teams t1 ON t1.id = m2.team1_id
+    JOIN teams t2 ON t2.id = m2.team2_id
+    WHERE m2.external_id = ?
+  `);
 
   const run = db.transaction(() => {
     for (const m of finished) {
       const score = m.score?.fullTime;
       if (score?.home == null || score?.away == null) { skipped++; continue; }
 
+      const isPlayoff = m.stage !== 'GROUP_STAGE';
+      let winnerCode = null;
+      if (isPlayoff && m.score?.winner) {
+        if (m.score.winner === 'HOME_TEAM')      winnerCode = m.homeTeam?.tla || null;
+        else if (m.score.winner === 'AWAY_TEAM') winnerCode = m.awayTeam?.tla || null;
+      }
+
       const note = `football-data.org · ${new Date().toISOString()}`;
-      const res  = updateMatch.run(score.home, score.away, note, m.id);
+      const res  = updateMatch.run(score.home, score.away, winnerCode, note, m.id);
 
       if (res.changes === 0) { skipped++; continue; }
 
-      const match = db.prepare('SELECT id FROM matches WHERE external_id = ?').get(m.id);
-      if (!match) continue;
+      const matchRow = getMatch.get(m.id);
+      if (!matchRow) continue;
 
       for (const pred of db.prepare(
-        'SELECT id, team1_score AS p1, team2_score AS p2 FROM predictions WHERE match_id = ?'
-      ).all(match.id)) {
-        updatePoints.run(calcPoints(pred.p1, pred.p2, score.home, score.away), pred.id);
+        'SELECT id, team1_score AS p1, team2_score AS p2, predicted_winner FROM predictions WHERE match_id = ?'
+      ).all(matchRow.id)) {
+        updatePoints.run(calcPoints(pred.p1, pred.p2, score.home, score.away, {
+          isPlayoff,
+          predictedWinner: pred.predicted_winner,
+          actualWinner: winnerCode,
+          team1Code: matchRow.team1_code,
+          team2Code: matchRow.team2_code,
+        }), pred.id);
       }
 
       updated++;
@@ -436,6 +470,17 @@ async function syncResultsFromFD() {
 
   run();
   return { source: 'football-data.org', updated, skipped, total: finished.length };
+}
+
+function calcPoints(p1, p2, a1, a2, opts = {}) {
+  if (p1 === a1 && p2 === a2) return 3;
+  if (opts.isPlayoff) {
+    const effectivePred = (p1 !== p2)
+      ? (p1 > p2 ? opts.team1Code : opts.team2Code)
+      : opts.predictedWinner;
+    return (effectivePred && opts.actualWinner && effectivePred === opts.actualWinner) ? 1 : 0;
+  }
+  return Math.sign(p1 - p2) === Math.sign(a1 - a2) ? 1 : 0;
 }
 
 module.exports = { setupFromFootballData, remapToApiFootball, syncResults, syncResultsFromFD, importKnockoutStage };

@@ -3,6 +3,7 @@ const user = requireAuth();
 let allMatches = [];
 let predictions = {};
 let activeFilter = 'all';
+const winnerSelections = {};
 
 const STAGE_LABELS = {
   group:  'Fase de Grupos',
@@ -22,7 +23,10 @@ async function loadMatches() {
     api.get('/predictions'),
   ]);
   allMatches = matches;
-  preds.forEach(p => { predictions[p.match_id] = p; });
+  preds.forEach(p => {
+    predictions[p.match_id] = p;
+    if (p.predicted_winner) winnerSelections[p.match_id] = p.predicted_winner;
+  });
   renderFilters();
   renderMatches();
 }
@@ -105,6 +109,35 @@ function renderMatches() {
   container.querySelectorAll('.btn-save-pred').forEach(btn => {
     btn.addEventListener('click', () => savePrediction(parseInt(btn.dataset.matchId)));
   });
+  container.querySelectorAll('.score-playoff').forEach(input => {
+    input.addEventListener('input', () => checkDrawPlayoff(parseInt(input.dataset.matchId)));
+  });
+  container.querySelectorAll('.btn-winner').forEach(btn => {
+    btn.addEventListener('click', () => selectWinner(parseInt(btn.dataset.matchId), btn.dataset.team));
+  });
+}
+
+function checkDrawPlayoff(matchId) {
+  const s1 = document.getElementById(`p1_${matchId}`)?.value;
+  const s2 = document.getElementById(`p2_${matchId}`)?.value;
+  const row = document.getElementById(`winner-row-${matchId}`);
+  if (!row) return;
+  const isDraw = s1 !== '' && s2 !== '' && parseInt(s1) === parseInt(s2);
+  row.style.display = isDraw ? '' : 'none';
+  if (!isDraw) winnerSelections[matchId] = null;
+}
+
+function selectWinner(matchId, teamCode) {
+  winnerSelections[matchId] = teamCode;
+  document.querySelectorAll(`.btn-winner[data-match-id="${matchId}"]`).forEach(btn => {
+    btn.className = `btn btn-sm btn-winner ${btn.dataset.team === teamCode ? 'btn-primary' : 'btn-secondary'}`;
+  });
+}
+
+function getTeamNameByCode(m, code) {
+  if (code === m.team1_code) return m.team1_name;
+  if (code === m.team2_code) return m.team2_name;
+  return code;
 }
 
 function renderGroupedByDate(matches) {
@@ -125,6 +158,7 @@ function renderMatchCard(m) {
   const now       = new Date();
   const matchDate = new Date(m.scheduled_at.replace(' ', 'T') + 'Z');
   const isLocked  = now >= matchDate;
+  const isPlayoff = m.stage !== 'group';
   const pred      = predictions[m.id];
   const timeStr   = matchDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   const stageStr  = m.group_letter ? `Grupo ${m.group_letter}` : (STAGE_LABELS[m.stage] || m.stage);
@@ -136,29 +170,59 @@ function renderMatchCard(m) {
   let predRow = '';
   if (m.is_finished && pred) {
     const pts = pred.points_earned;
+    const winnerInfo = (isPlayoff && pred.predicted_winner)
+      ? ` · Avanza: ${getTeamNameByCode(m, pred.predicted_winner)}`
+      : '';
     predRow = `
       <div class="prediction-row">
         <span style="font-size:.8rem; color:var(--text-muted);">Tu pronóstico:</span>
-        <strong>${pred.team1_score} – ${pred.team2_score}</strong>
+        <strong>${pred.team1_score} – ${pred.team2_score}${winnerInfo}</strong>
         <span class="points-chip points-${pts}">${pts} ${pts === 1 ? 'punto' : 'puntos'}</span>
       </div>`;
   } else if (!m.is_finished && isLocked) {
+    const winnerInfo = (isPlayoff && pred?.predicted_winner)
+      ? ` · Avanza: ${getTeamNameByCode(m, pred.predicted_winner)}`
+      : '';
     predRow = `
       <div class="prediction-row">
         <span class="locked-badge">🔒 Partido en curso — pronósticos cerrados</span>
-        ${pred ? `<strong style="margin-left:.5rem;">${pred.team1_score} – ${pred.team2_score}</strong>` : ''}
+        ${pred ? `<strong style="margin-left:.5rem;">${pred.team1_score} – ${pred.team2_score}${winnerInfo}</strong>` : ''}
       </div>`;
   } else if (!m.is_finished) {
-    predRow = `
-      <div class="prediction-row">
-        <span style="font-size:.8rem; color:var(--text-muted); font-weight:600;">Tu pronóstico:</span>
-        <div class="score-inputs">
-          <input class="score-input" type="number" min="0" max="20" id="p1_${m.id}" value="${pred?.team1_score ?? ''}" placeholder="0">
-          <span class="score-sep">–</span>
-          <input class="score-input" type="number" min="0" max="20" id="p2_${m.id}" value="${pred?.team2_score ?? ''}" placeholder="0">
+    const savedWinner  = winnerSelections[m.id] || null;
+    const isDrawPred   = pred && pred.team1_score === pred.team2_score;
+    const showWinner   = isPlayoff && (isDrawPred || (savedWinner != null));
+
+    const winnerPicker = isPlayoff ? `
+      <div id="winner-row-${m.id}" style="${showWinner ? '' : 'display:none;'} margin-top:.4rem;">
+        <span style="font-size:.75rem; color:var(--text-muted);">¿Quién avanza?</span>
+        <div style="display:flex; gap:.4rem; margin-top:.25rem; flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm btn-winner ${savedWinner === m.team1_code ? 'btn-primary' : 'btn-secondary'}"
+            data-match-id="${m.id}" data-team="${m.team1_code}">
+            ${m.team1_flag} ${m.team1_name}
+          </button>
+          <button type="button" class="btn btn-sm btn-winner ${savedWinner === m.team2_code ? 'btn-primary' : 'btn-secondary'}"
+            data-match-id="${m.id}" data-team="${m.team2_code}">
+            ${m.team2_flag} ${m.team2_name}
+          </button>
         </div>
-        <button class="btn btn-primary btn-sm btn-save-pred" data-match-id="${m.id}">Guardar</button>
-        ${pred ? '<span class="badge badge-green">Guardado</span>' : '<span class="badge badge-yellow">Sin guardar</span>'}
+      </div>` : '';
+
+    predRow = `
+      <div class="prediction-row" style="flex-direction:column; align-items:flex-start; gap:.3rem;">
+        <div style="display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;">
+          <span style="font-size:.8rem; color:var(--text-muted); font-weight:600;">Tu pronóstico:</span>
+          <div class="score-inputs">
+            <input class="score-input${isPlayoff ? ' score-playoff' : ''}" type="number" min="0" max="20"
+              id="p1_${m.id}" data-match-id="${m.id}" value="${pred?.team1_score ?? ''}" placeholder="0">
+            <span class="score-sep">–</span>
+            <input class="score-input${isPlayoff ? ' score-playoff' : ''}" type="number" min="0" max="20"
+              id="p2_${m.id}" data-match-id="${m.id}" value="${pred?.team2_score ?? ''}" placeholder="0">
+          </div>
+          <button class="btn btn-primary btn-sm btn-save-pred" data-match-id="${m.id}">Guardar</button>
+          ${pred ? '<span class="badge badge-green">Guardado</span>' : '<span class="badge badge-yellow">Sin guardar</span>'}
+        </div>
+        ${winnerPicker}
       </div>`;
   }
 
@@ -187,12 +251,32 @@ async function savePrediction(matchId) {
   const s1 = document.getElementById(`p1_${matchId}`).value;
   const s2 = document.getElementById(`p2_${matchId}`).value;
   if (s1 === '' || s2 === '') { alert('Ingresá los dos marcadores antes de guardar.'); return; }
+
+  const m = allMatches.find(x => x.id === matchId);
+  const isPlayoff = m?.stage !== 'group';
+  const isDraw    = parseInt(s1) === parseInt(s2);
+  const predicted_winner = (isPlayoff && isDraw)
+    ? (winnerSelections[matchId] || predictions[matchId]?.predicted_winner || null)
+    : null;
+
+  if (isPlayoff && isDraw && !predicted_winner) {
+    alert('Para un empate en playoff, seleccioná quién avanza antes de guardar.');
+    return;
+  }
+
   try {
     await api.put(`/predictions/${matchId}`, {
       team1_score: parseInt(s1),
       team2_score: parseInt(s2),
+      predicted_winner,
     });
-    predictions[matchId] = { ...(predictions[matchId] || {}), match_id: matchId, team1_score: parseInt(s1), team2_score: parseInt(s2) };
+    predictions[matchId] = {
+      ...(predictions[matchId] || {}),
+      match_id: matchId,
+      team1_score: parseInt(s1),
+      team2_score: parseInt(s2),
+      predicted_winner,
+    };
     renderMatches();
   } catch (err) {
     alert(err.message);

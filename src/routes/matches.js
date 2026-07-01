@@ -37,30 +37,47 @@ router.get('/:id', authenticate, (req, res) => {
 });
 
 router.put('/:id/result', authenticate, requireAdmin, (req, res) => {
-  const { team1_score, team2_score } = req.body;
+  const { team1_score, team2_score, winner_code } = req.body;
   if (team1_score == null || team2_score == null) {
     return res.status(400).json({ error: 'Se requieren los marcadores de ambos equipos' });
   }
 
-  const match = db.prepare('SELECT id FROM matches WHERE id = ?').get(req.params.id);
+  const match = db.prepare(`
+    SELECT m.id, m.stage, t1.code AS team1_code, t2.code AS team2_code
+    FROM matches m
+    JOIN teams t1 ON t1.id = m.team1_id
+    JOIN teams t2 ON t2.id = m.team2_id
+    WHERE m.id = ?
+  `).get(req.params.id);
   if (!match) return res.status(404).json({ error: 'Partido no encontrado' });
 
+  const isPlayoff = match.stage !== 'group';
+  let effectiveWinner = null;
+  if (isPlayoff) {
+    if (team1_score > team2_score)      effectiveWinner = match.team1_code;
+    else if (team2_score > team1_score) effectiveWinner = match.team2_code;
+    else                                effectiveWinner = winner_code || null;
+  }
+
   db.prepare(
-    'UPDATE matches SET team1_score = ?, team2_score = ?, is_finished = 1 WHERE id = ?'
-  ).run(team1_score, team2_score, req.params.id);
+    'UPDATE matches SET team1_score = ?, team2_score = ?, winner_code = ?, is_finished = 1 WHERE id = ?'
+  ).run(team1_score, team2_score, effectiveWinner, match.id);
 
-  // Recalculate points for all predictions of this match
   const predictions = db.prepare(
-    'SELECT id, team1_score AS p1, team2_score AS p2 FROM predictions WHERE match_id = ?'
-  ).all(req.params.id);
+    'SELECT id, team1_score AS p1, team2_score AS p2, predicted_winner FROM predictions WHERE match_id = ?'
+  ).all(match.id);
 
-  const updatePoints = db.prepare(
-    'UPDATE predictions SET points_earned = ? WHERE id = ?'
-  );
+  const updatePoints = db.prepare('UPDATE predictions SET points_earned = ? WHERE id = ?');
   const update = db.transaction(() => {
     for (const pred of predictions) {
-      const points = calcPoints(pred.p1, pred.p2, team1_score, team2_score);
-      updatePoints.run(points, pred.id);
+      const pts = calcPoints(pred.p1, pred.p2, team1_score, team2_score, {
+        isPlayoff,
+        predictedWinner: pred.predicted_winner,
+        actualWinner: effectiveWinner,
+        team1Code: match.team1_code,
+        team2Code: match.team2_code,
+      });
+      updatePoints.run(pts, pred.id);
     }
   });
   update();
@@ -68,10 +85,15 @@ router.put('/:id/result', authenticate, requireAdmin, (req, res) => {
   res.json({ message: 'Resultado actualizado y puntos recalculados' });
 });
 
-function calcPoints(p1, p2, a1, a2) {
+function calcPoints(p1, p2, a1, a2, opts = {}) {
   if (p1 === a1 && p2 === a2) return 3;
-  if (Math.sign(p1 - p2) === Math.sign(a1 - a2)) return 1;
-  return 0;
+  if (opts.isPlayoff) {
+    const effectivePred = (p1 !== p2)
+      ? (p1 > p2 ? opts.team1Code : opts.team2Code)
+      : opts.predictedWinner;
+    return (effectivePred && opts.actualWinner && effectivePred === opts.actualWinner) ? 1 : 0;
+  }
+  return Math.sign(p1 - p2) === Math.sign(a1 - a2) ? 1 : 0;
 }
 
 module.exports = router;
