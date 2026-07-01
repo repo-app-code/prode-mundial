@@ -473,7 +473,12 @@ async function syncResultsFromFD() {
 }
 
 function calcPoints(p1, p2, a1, a2, opts = {}) {
-  if (p1 === a1 && p2 === a2) return 3;
+  if (p1 === a1 && p2 === a2) {
+    if (opts.isPlayoff && p1 === p2 && opts.predictedWinner && opts.actualWinner) {
+      return opts.predictedWinner === opts.actualWinner ? 4 : 3;
+    }
+    return 3;
+  }
   if (opts.isPlayoff) {
     const effectivePred = (p1 !== p2)
       ? (p1 > p2 ? opts.team1Code : opts.team2Code)
