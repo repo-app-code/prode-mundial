@@ -483,7 +483,10 @@ function calcPoints(p1, p2, a1, a2, opts = {}) {
     const effectivePred = (p1 !== p2)
       ? (p1 > p2 ? opts.team1Code : opts.team2Code)
       : opts.predictedWinner;
-    return (effectivePred && opts.actualWinner && effectivePred === opts.actualWinner) ? 1 : 0;
+    const winnerCorrect = !!(effectivePred && opts.actualWinner && effectivePred === opts.actualWinner);
+    const bothDraw = (p1 === p2) && (a1 === a2);
+    if (winnerCorrect) return bothDraw ? 2 : 1;
+    return bothDraw ? 1 : 0;
   }
   return Math.sign(p1 - p2) === Math.sign(a1 - a2) ? 1 : 0;
 }
